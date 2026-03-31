@@ -1,0 +1,176 @@
+package org.example.MediManage.service;
+
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import org.example.MediManage.dao.MessageTemplateDAO;
+import org.example.MediManage.dao.ReceiptSettingsDAO;
+import org.example.MediManage.model.MessageTemplate;
+import org.example.MediManage.model.ReceiptSettings;
+import org.example.MediManage.config.WhatsAppBridgeConfig;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.concurrent.CompletableFuture;
+
+public class WhatsAppService {
+
+    private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
+    private static final MessageTemplateDAO templateDAO = new MessageTemplateDAO();
+    private static final ReceiptSettingsDAO receiptDAO = new ReceiptSettingsDAO();
+
+    /**
+     * Sends a WhatsApp message via local Node.js bridge (whatsapp-web.js) with the invoice summary, care protocol and PDF attachment.
+     * Uses customizable message template from the database.
+     */
+    public static CompletableFuture<Boolean> sendInvoiceWhatsApp(String toPhone, String customerName, double totalAmount, String careProtocol, int billId, String pdfPath) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                String cleanToPhone = toPhone.replaceAll("[^0-9+]", "");
+
+                // Load customizable template
+                String pharmacyName = "MediManage Pharmacy";
+                try { 
+                    ReceiptSettings rs = receiptDAO.getSettings();
+                    if (rs.getPharmacyName() != null && !rs.getPharmacyName().isBlank()) {
+                        pharmacyName = rs.getPharmacyName();
+                    }
+                } catch (Exception ignored) {}
+
+                String careNote = "";
+                if (careProtocol != null && !careProtocol.isBlank()) {
+                    careNote = "Patient Care Protocol note: a personalized care guide for these medicines is included at the end of the attached PDF.";
+                }
+
+                MessageTemplate template = templateDAO.getByKey(MessageTemplateDAO.KEY_WHATSAPP_INVOICE);
+                String body;
+                if (template != null) {
+                    body = MessageTemplate.render(template.getBodyTemplate(), customerName, billId, totalAmount, pharmacyName, careNote);
+                } else {
+                    body = MessageTemplate.render(templateDAO.getDefaultBody(MessageTemplateDAO.KEY_WHATSAPP_INVOICE), customerName, billId, totalAmount, pharmacyName, careNote);
+                }
+
+                // Resolve absolute path for PDF
+                String absolutePdfPath = (pdfPath != null && !pdfPath.isBlank())
+                    ? prepareBridgePdfPath(pdfPath)
+                    : "";
+
+                JsonObject json = new JsonObject();
+                json.addProperty("phone", cleanToPhone);
+                json.addProperty("message", body);
+                json.addProperty("pdfPath", absolutePdfPath);
+
+                String jsonPayload = new Gson().toJson(json);
+
+                HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+                        .uri(URI.create(WhatsAppBridgeConfig.sendUrl()))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(jsonPayload));
+                WhatsAppBridgeConfig.applyAdminHeader(requestBuilder);
+                HttpRequest request = requestBuilder.build();
+
+                HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+                ensureBridgeSuccess(response);
+
+                return true;
+            } catch (Exception e) {
+                e.printStackTrace();
+                String msg = e.getMessage();
+                Throwable root = e;
+                while (root.getCause() != null) {
+                    root = root.getCause();
+                    msg = root.getMessage();
+                }
+                throw new java.util.concurrent.CompletionException(msg, e);
+            }
+        });
+    }
+
+    /**
+     * Sends a simple text WhatsApp message (no PDF) for generic notifications.
+     */
+    public static CompletableFuture<Boolean> sendNotificationWhatsApp(String toPhone, String message) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                String cleanToPhone = toPhone.replaceAll("[^0-9+]", "");
+
+                JsonObject json = new JsonObject();
+                json.addProperty("phone", cleanToPhone);
+                json.addProperty("message", message);
+
+                String jsonPayload = new Gson().toJson(json);
+
+                HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+                        .uri(URI.create(WhatsAppBridgeConfig.sendUrl()))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(jsonPayload));
+                WhatsAppBridgeConfig.applyAdminHeader(requestBuilder);
+                HttpRequest request = requestBuilder.build();
+
+                HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
+                ensureBridgeSuccess(response);
+
+                return true;
+            } catch (Exception e) {
+                e.printStackTrace();
+                String msg = e.getMessage();
+                Throwable root = e;
+                while (root.getCause() != null) {
+                    root = root.getCause();
+                    msg = root.getMessage();
+                }
+                throw new java.util.concurrent.CompletionException(msg, e);
+            }
+        });
+    }
+
+    private static String prepareBridgePdfPath(String pdfPath) throws java.io.IOException {
+        Path source = Path.of(pdfPath).toAbsolutePath();
+        Path userHome = Path.of(System.getProperty("user.home")).toAbsolutePath();
+        if (source.startsWith(userHome)) {
+            return source.toString();
+        }
+
+        Path bridgeDir = userHome.resolve("MediManage").resolve("bridge-pdfs");
+        Files.createDirectories(bridgeDir);
+        Path target = bridgeDir.resolve(source.getFileName() == null ? "invoice.pdf" : source.getFileName().toString());
+        Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
+        return target.toString();
+    }
+
+    private static void ensureBridgeSuccess(HttpResponse<String> response) {
+        try {
+            JsonObject body = new Gson().fromJson(response.body(), JsonObject.class);
+            boolean isSuccessStatus = response.statusCode() == 200;
+            boolean isBodySuccess = body != null && body.has("success") && body.get("success").getAsBoolean();
+
+            if (!isSuccessStatus || (body != null && body.has("success") && !isBodySuccess)) {
+                if (body != null) {
+                    if (body.has("currentStatus")) {
+                        String status = body.get("currentStatus").getAsString();
+                        if ("INITIALIZING".equals(status)) {
+                            throw new RuntimeException("WhatsApp Bridge is still starting up. Please wait a few seconds and try again.");
+                        } else if ("QR_REQUIRED".equals(status)) {
+                            throw new RuntimeException("WhatsApp is not linked. Please go to Settings to scan the QR code.");
+                        } else if ("DISCONNECTED".equals(status) || "FAILED".equals(status)) {
+                            throw new RuntimeException("WhatsApp is disconnected. Please re-link your device in Settings.");
+                        }
+                    }
+                    if (body.has("error")) {
+                        throw new RuntimeException(body.get("error").getAsString());
+                    }
+                }
+            }
+        } catch (com.google.gson.JsonSyntaxException ignored) {
+            // Json parse failed, fall back to string check below
+        }
+
+        if (response.statusCode() != 200) {
+            throw new RuntimeException("Local WhatsApp Bridge Error: " + response.body());
+        }
+    }
+}

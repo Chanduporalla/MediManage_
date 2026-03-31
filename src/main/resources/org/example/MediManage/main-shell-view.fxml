@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<BorderPane fx:id="mainLayout" prefHeight="600.0" prefWidth="900.0"
+    xmlns="http://javafx.com/javafx/17"
+    xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.MediManage.controller.MainShellController">
+    <top>
+        <HBox alignment="CENTER_LEFT" styleClass="header-bar" BorderPane.alignment="CENTER">
+            <children>
+                <Label text="MediManage" styleClass="header-title">
+                    <HBox.margin>
+                        <Insets left="16.0" />
+                    </HBox.margin>
+                </Label>
+                <HBox alignment="CENTER_RIGHT" HBox.hgrow="ALWAYS">
+                    <children>
+                        <Label fx:id="userInfoLabel" text="User: ..." styleClass="header-user-label">
+                            <HBox.margin>
+                                <Insets right="16.0" />
+                            </HBox.margin>
+                        </Label>
+                    </children>
+                </HBox>
+            </children>
+        </HBox>
+    </top>
+    <left>
+        <ScrollPane fitToWidth="true" fitToHeight="true" hbarPolicy="NEVER" pannable="true"
+            prefWidth="180.0" styleClass="edge-to-edge,sidebar-scroll" BorderPane.alignment="CENTER">
+            <content>
+                <VBox fx:id="sidebar" prefWidth="180.0" styleClass="sidebar" />
+            </content>
+        </ScrollPane>
+    </left>
+    <center>
+        <!-- Content will be loaded here dynamically -->
+    </center>
+</BorderPane>

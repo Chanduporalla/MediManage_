@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import org.kordamp.ikonli.javafx.FontIcon?>
+
+<VBox spacing="10"
+    xmlns="http://javafx.com/javafx/17"
+    xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.MediManage.controller.InventoryController" styleClass="dark-panel">
+
+    <!-- Top Bar -->
+    <HBox spacing="10" alignment="CENTER_LEFT">
+        <Label text="Inventory Management" styleClass="page-title"/>
+        <Region HBox.hgrow="ALWAYS"/>
+        <TextField fx:id="searchField" promptText="Search Name / Generic / Company / Barcode" prefWidth="300"/>
+        <Button text="Export" onAction="#handleExportExcel" styleClass="button-outlined">
+            <graphic>
+                <FontIcon iconLiteral="fas-file-excel"/>
+            </graphic>
+        </Button>
+    </HBox>
+
+    <HBox spacing="10" alignment="CENTER_RIGHT">
+        <Region HBox.hgrow="ALWAYS"/>
+        <Label fx:id="lblPageInfo" text="Rows 0-0 of 0 (Page 1/1)"/>
+        <Button fx:id="btnPrevPage" text="Prev" onAction="#handlePrevPage"/>
+        <Button fx:id="btnNextPage" text="Next" onAction="#handleNextPage"/>
+    </HBox>
+
+    <SplitPane dividerPositions="0.7" VBox.vgrow="ALWAYS">
+        <!-- Center: Table -->
+        <items>
+            <TableView fx:id="inventoryTable">
+                <columns>
+                    <TableColumn fx:id="colId" text="ID" prefWidth="50"/>
+                    <TableColumn fx:id="colName" text="Medicine Name" prefWidth="150"/>
+                    <TableColumn fx:id="colGeneric" text="Generic" prefWidth="130"/>
+                    <TableColumn fx:id="colCompany" text="Company" prefWidth="120"/>
+                    <TableColumn fx:id="colExpiry" text="Expiry" prefWidth="100"/>
+                    <TableColumn fx:id="colStock" text="Stock" prefWidth="80"/>
+                    <TableColumn fx:id="colPrice" text="Price (₹)" prefWidth="80"/>
+                    <TableColumn fx:id="colBarcode" text="Barcode" prefWidth="120"/>
+                </columns>
+                <columnResizePolicy>
+                    <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+                </columnResizePolicy>
+            </TableView>
+
+            <!-- Right: Form -->
+            <VBox spacing="15" styleClass="dark-form-panel">
+                <Label text="Medicine Details" styleClass="section-title"/>
+
+                <VBox spacing="5">
+                    <Label text="Medicine Name"/>
+                    <TextField fx:id="txtName" promptText="Name"/>
+                </VBox>
+                <VBox spacing="5">
+                    <Label text="Generic Name"/>
+                    <TextField fx:id="txtGenericName" promptText="Salt / molecule / composition"/>
+                </VBox>
+                <VBox spacing="5">
+                    <Label text="Company"/>
+                    <TextField fx:id="txtCompany" promptText="Manufacturer"/>
+                </VBox>
+                <VBox spacing="5">
+                    <Label text="Expiry Date"/>
+                    <DatePicker fx:id="dateExpiry" maxWidth="Infinity"/>
+                </VBox>
+                <HBox spacing="10">
+                    <VBox spacing="5" HBox.hgrow="ALWAYS">
+                        <Label text="Price (₹)"/>
+                        <TextField fx:id="txtPrice" promptText="0.00"/>
+                    </VBox>
+                    <VBox spacing="5" HBox.hgrow="ALWAYS">
+                        <Label text="Stock"/>
+                        <TextField fx:id="txtStock" promptText="Qty"/>
+                    </VBox>
+                </HBox>
+                <HBox spacing="10">
+                    <VBox spacing="5" HBox.hgrow="ALWAYS">
+                        <Label text="Cost Price (₹)"/>
+                        <TextField fx:id="txtPurchasePrice" promptText="0.00"/>
+                    </VBox>
+                    <VBox spacing="5" HBox.hgrow="ALWAYS">
+                        <Label text="Reorder Threshold"/>
+                        <TextField fx:id="txtReorderThreshold" promptText="10"/>
+                    </VBox>
+                </HBox>
+                <VBox spacing="5">
+                    <Label text="Barcode"/>
+                    <HBox spacing="8">
+                        <TextField fx:id="txtBarcode" promptText="Scan or type barcode" HBox.hgrow="ALWAYS"/>
+                        <Button text="Generate" onAction="#handleGenerateBarcode" styleClass="button-outlined"/>
+                        <Button fx:id="btnPrintBarcode" text="Print Label" onAction="#handlePrintBarcodeLabel" styleClass="button-outlined" disable="true"/>
+                    </HBox>
+                    <Label text="Right-click any inventory row to edit or auto-generate a barcode instantly." wrapText="true" style="-fx-text-fill: #7a8399; -fx-font-size: 11px;"/>
+                </VBox>
+
+                <VBox spacing="8" styleClass="billing-section">
+                    <Label text="Batch Overview" styleClass="label-strong"/>
+                    <Label fx:id="lblBatchSummary" text="Select a medicine to view active batches, nearest expiry, and available units." style="-fx-text-fill: #7a8399; -fx-font-size: 11px;" wrapText="true"/>
+                    <ListView fx:id="listBatches" prefHeight="116" maxHeight="140"/>
+                </VBox>
+
+                <Region VBox.vgrow="ALWAYS"/>
+
+                <Button fx:id="btnSave" text="Add New" styleClass="button-primary" maxWidth="Infinity" onAction="#handleSave"/>
+                <HBox spacing="10">
+                    <Button text="Clear" onAction="#handleClear" maxWidth="Infinity" HBox.hgrow="ALWAYS"/>
+                    <Button fx:id="btnDelete" text="Delete" disable="true" styleClass="button-danger" maxWidth="Infinity" HBox.hgrow="ALWAYS" onAction="#handleDelete"/>
+                </HBox>
+
+                <Separator/>
+                <VBox spacing="10" styleClass="billing-section">
+                    <Label text="Stock Write-Offs" styleClass="label-strong"/>
+                    <Button fx:id="btnRecordAdjustment" text="Record Stock Write-Off" disable="true" onAction="#handleRecordAdjustment" maxWidth="Infinity" styleClass="button-outlined"/>
+                    <ListView fx:id="listRecentAdjustments" prefHeight="140" maxHeight="160"/>
+                    <Label text="Use this for supplier returns, expired stock, damage, breakage, or waste disposal. Each entry reduces on-hand stock and stays visible in recent activity." wrapText="true" style="-fx-text-fill: #7a8399; -fx-font-size: 11px;"/>
+                </VBox>
+
+                <Separator/>
+                <VBox spacing="10" styleClass="billing-section">
+                    <Label text="Restock Analysis" styleClass="label-strong"/>
+                    <Button fx:id="btnAIRestock" text="Open Restock Analysis" onAction="#handleAIRestock" maxWidth="Infinity" prefHeight="45" styleClass="button-ai"/>
+                    <Label text="Reviews recent sales, stock levels, and reorder gaps in a popup report." wrapText="true" style="-fx-text-fill: #7a8399; -fx-font-size: 11px;"/>
+                </VBox>
+            </VBox>
+        </items>
+    </SplitPane>
+</VBox>

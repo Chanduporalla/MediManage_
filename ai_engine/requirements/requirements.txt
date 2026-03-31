@@ -1,0 +1,6 @@
+# Cloud-only dependency bundle for the MediManage AI engine.
+flask
+numpy
+requests
+duckduckgo-search
+mcp[cli]

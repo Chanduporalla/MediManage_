@@ -1,0 +1,55 @@
+# Build
+target/
+build/
+dist/
+Output/
+tmp/
+
+# IDE
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+.classpath
+.project
+.settings
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+*.db.bak
+*.sqlite
+!src/main/resources/db/medimanage.db
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+ai_engine/.venv*/
+ai_engine/envs/
+ai_engine/python/
+ai_engine/__pycache__/
+
+# Node
+whatsapp-server/node_modules/
+whatsapp-server/.wwebjs_auth/
+whatsapp-server/.wwebjs_cache/
+whatsapp-server/.env
+
+# Local repos
+.m2/
+
+# Misc
+*.log
+*.exe
+*.msi
+models/
+.gemini/
+.agent/

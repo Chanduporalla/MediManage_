@@ -1,0 +1,11 @@
+{
+    "mcpServers": {
+        "medimanage": {
+            "command": "python",
+            "args": [
+                "server/mcp_server.py",
+                "--stdio"
+            ]
+        }
+    }
+}
